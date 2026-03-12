@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>羽雪chat · 卡片聊天</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #2b1a3a 0%, #1d2b3e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+        }
+
+        /* 卡片通用样式 — 大圆角 + 微光渐变 */
+        .card {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            background: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 100%);
+            border-radius: 42px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            color: #f0eaff;
+        }
+
+        /* 登录卡片 与 聊天卡片 共用卡片背景 */
+        .login-card, .chat-card {
+            padding: 32px 24px;
+        }
+
+        .chat-card {
+            padding: 24px 18px;
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+            max-height: 800px;
+        }
+
+        /* 标题/头像区 */
+        .app-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            padding: 0 6px;
+        }
+        .app-header img {
+            width: 44px;
+            height: 44px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.15);
+            padding: 6px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.3);
+        }
+        .app-header h2 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            background: linear-gradient(120deg, #fff, #dac8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* 表单元素 */
+        .input-group {
+            margin-bottom: 24px;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            margin-left: 8px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+        .input-field {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1.5px solid rgba(255,255,255,0.15);
+            border-radius: 28px;
+            padding: 16px 22px;
+            font-size: 1rem;
+            color: white;
+            outline: none;
+            transition: all 0.2s;
+            backdrop-filter: blur(8px);
+        }
+        .input-field:focus {
+            border-color: #a88bff;
+            background: rgba(0, 0, 0, 0.35);
+            box-shadow: 0 0 0 3px rgba(168, 139, 255, 0.3);
+        }
+        .input-field::placeholder {
+            color: rgba(255,255,255,0.4);
+            font-weight: 300;
+        }
+
+        .btn {
+            width: 100%;
+            background: linear-gradient(135deg, #7b4fe0, #a56eff);
+            border: none;
+            border-radius: 40px;
+            padding: 16px 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            box-shadow: 0 15px 25px -8px #3a1d6e;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.2s;
+            border: 1px solid rgba(255,255,255,0.2);
+            letter-spacing: 1px;
+            margin-top: 12px;
+        }
+        .btn:active {
+            transform: scale(0.97);
+            box-shadow: 0 8px 15px -5px #2f1654;
+        }
+
+        /* 聊天区域 */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 6px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+        }
+
+        /* 消息气泡 — 大圆角卡片风格 */
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            animation: fadeIn 0.2s ease;
+        }
+        .message.own {
+            align-self: flex-end;
+        }
+        .message-content {
+            background: rgba(30, 20, 40, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 32px;
+            padding: 14px 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 18px -6px black;
+            word-break: break-word;
+            line-height: 1.5;
+        }
+        .message.own .message-content {
+            background: rgba(98, 60, 173, 0.7);
+            border: 1px solid rgba(255,255,255,0.25);
+        }
+        .message-name {
+            font-size: 0.75rem;
+            color: #c9b6ff;
+            margin-bottom: 4px;
+            margin-left: 12px;
+            font-weight: 500;
+        }
+        .message.own .message-name {
+            text-align: right;
+            margin-right: 12px;
+            color: #e1caff;
+        }
+        .message-time {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.4);
+            margin-top: 4px;
+            margin-left: 12px;
+        }
+        .message.own .message-time {
+            text-align: right;
+            margin-right: 12px;
+        }
+
+        /* 文本换行 */
+        .text-message {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #f5f0ff;
+        }
+        /* 图片消息 */
+        .image-message {
+            max-width: 100%;
+            border-radius: 24px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.2);
+            display: block;
+        }
+
+        /* 底部输入栏 */
+        .input-area {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+            border-radius: 40px;
+            padding: 8px 8px 8px 18px;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .input-area textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1rem;
+            padding: 12px 0;
+            max-height: 120px;
+            resize: none;
+            outline: none;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+        .input-area textarea::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+        .action-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 32px;
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .action-btn:active {
+            background: rgba(168, 139, 255, 0.4);
+            transform: scale(0.9);
+        }
+        .send-btn {
+            background: linear-gradient(145deg, #8b5cf6, #a16eff);
+            border: none;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+            width: 64px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 简单动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 适配小屏幕 */
+        @media (max-width: 400px) {
+            .card { border-radius: 32px; }
+            .login-card, .chat-card { padding: 24px 16px; }
+            .app-header h2 { font-size: 1.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录卡片 -->
+    <div id="loginCard" class="card login-card">
+        <div class="app-header">
+            <img src="/icon.png" alt="羽雪" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2245%22%20fill%3D%22%23a56eff%22%2F%3E%3Ctext%20x%3D%2225%22%20y%3D%2270%22%20fill%3D%22white%22%20font-size%3D%2260%22%3E❄️%3C%2Ftext%3E%3C%2Fsvg%3E'">
+            <h2>羽雪chat</h2>
+        </div>
+        <div class="input-group">
+            <label>✨ 名字</label>
+            <input type="text" id="loginName" class="input-field" placeholder="如何称呼您？" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <label>🔐 暗号</label>
+            <input type="password" id="loginPassword" class="input-field" placeholder="输入密码 123456">
+        </div>
+        <button class="btn" id="loginBtn">进入聊天</button>
+        <div style="text-align:center; margin-top:16px; color:rgba(255,255,255,0.3); font-size:0.8rem;">demo 密码: 123456</div>
+    </div>
+
+    <!-- 聊天卡片 (初始隐藏) -->
+    <div id="chatCard" class="card chat-card hidden">
+        <div class="app-header" style="margin-bottom:12px;">
+            <img src="/icon.png" alt="羽雪" onerror="this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2250%22%20r%3D%2245%22%20fill%3D%22%23a56eff%22%2F%3E%3Ctext%20x%3D%2225%22%20y%3D%2270%22%20fill%3D%22white%22%20font-size%3D%2260%22%3E❄️%3C%2Ftext%3E%3C%2Fsvg%3E'">
+            <h2 style="font-size:1.6rem;">羽雪</h2>
+            <span style="margin-left:auto; background:rgba(255,255,255,0.1); padding:6px 16px; border-radius:40px; font-size:0.9rem;" id="currentUserSpan"></span>
+        </div>
+
+        <!-- 消息列表 -->
+        <div id="messageList" class="messages-container">
+            <!-- 动态渲染消息 -->
+        </div>
+
+        <!-- 底部输入 -->
+        <div class="input-area">
+            <textarea id="messageInput" placeholder="说点什么... 支持换行" rows="1"></textarea>
+            <div class="action-btn" id="imageBtn" title="发送图片">📷</div>
+            <div class="action-btn send-btn" id="sendBtn">➤</div>
+        </div>
+
+        <!-- 隐藏的文件选择器 -->
+        <input type="file" id="imagePicker" accept="image/*" style="display: none;">
+    </div>
+
+    <script>
+        (function() {
+            // DOM 元素
+            const loginCard = document.getElementById('loginCard');
+            const chatCard = document.getElementById('chatCard');
+            const loginName = document.getElementById('loginName');
+            const loginPassword = document.getElementById('loginPassword');
+            const loginBtn = document.getElementById('loginBtn');
+            const currentUserSpan = document.getElementById('currentUserSpan');
+            const messageList = document.getElementById('messageList');
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const imageBtn = document.getElementById('imageBtn');
+            const imagePicker = document.getElementById('imagePicker');
+
+            // 状态
+            let lastMessageTime = 0;            // 用于轮询的时间戳(毫秒)
+            let polling = false;
+            let currentUser = '';
+
+            // 登录按钮事件
+            loginBtn.addEventListener('click', async () => {
+                const name = loginName.value.trim();
+                const password = loginPassword.value.trim();
+                if (!name || !password) {
+                    alert('名字和暗号都不能为空');
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, password }),
+                        credentials: 'include'   // 携带cookie
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        // 登录成功
+                        currentUser = name;
+                        currentUserSpan.textContent = name;
+                        loginCard.classList.add('hidden');
+                        chatCard.classList.remove('hidden');
+                        // 清空输入
+                        loginName.value = '';
+                        loginPassword.value = '';
+                        // 开始轮询
+                        startPolling();
+                        // 加载完历史消息后自动滚动到底部
+                    } else {
+                        alert(data.message || '登录失败，请检查密码');
+                    }
+                } catch (err) {
+                    alert('网络错误');
+                }
+            });
+
+            // 发送消息 (文本)
+            async function sendTextMessage() {
+                const content = messageInput.value.trim();
+                if (!content) return;
+                await sendMessage(content, 'text');
+                messageInput.value = '';
+                messageInput.style.height = 'auto'; // 重置高度
+            }
+
+            // 发送图片 (base64)
+            async function sendImageMessage(base64Data) {
+                await sendMessage(base64Data, 'image');
+            }
+
+            // 通用发送
+            async function sendMessage(content, type) {
+                try {
+                    const res = await fetch('/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content, type }),
+                        credentials: 'include'
+                    });
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            alert('会话过期，请重新登录');
+                            logout();
+                        } else {
+                            alert('发送失败');
+                        }
+                    } else {
+                        // 发送成功，轮询会立即获取新消息，但为了体验可以主动拉一次（可选）
+                        // 这里等待轮询即可
+                    }
+                } catch (err) {
+                    alert('网络错误');
+                }
+            }
+
+            // 选择图片
+            imageBtn.addEventListener('click', () => {
+                imagePicker.click();
+            });
+
+            imagePicker.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (!file.type.startsWith('image/')) {
+                    alert('请选择图片文件');
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64 = event.target.result; // data:image/png;base64,...
+                    sendImageMessage(base64);
+                };
+                reader.readAsDataURL(file);
+                // 清空input以便重新选择相同文件
+                imagePicker.value = '';
+            });
+
+            // 发送按钮
+            sendBtn.addEventListener('click', sendTextMessage);
+
+            // 输入框回车发送 (shift+enter换行)
+            messageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendTextMessage();
+                }
+            });
+
+            // 自动调整输入框高度
+            messageInput.addEventListener('input', () => {
+                messageInput.style.height = 'auto';
+                messageInput.style.height = Math.min(120, messageInput.scrollHeight) + 'px';
+            });
+
+            // 轮询新消息
+            function startPolling() {
+                if (polling) return;
+                polling = true;
+                const poll = async () => {
+                    try {
+                        const url = `/messages?since=${lastMessageTime}`;
+                        const res = await fetch(url, { credentials: 'include' });
+                        if (!res.ok) throw new Error('fetch error');
+                        const messages = await res.json();
+                        if (messages.length > 0) {
+                            appendMessages(messages);
+                            // 更新最新时间戳 (取最大)
+                            const maxTime = Math.max(...messages.map(m => m.time));
+                            if (maxTime > lastMessageTime) lastMessageTime = maxTime;
+                        }
+                    } catch (err) {
+                        console.warn('poll error', err);
+                    } finally {
+                        if (polling) {
+                            setTimeout(poll, 1000); // 1秒轮询
+                        }
+                    }
+                };
+                poll();
+            }
+
+            function stopPolling() {
+                polling = false;
+            }
+
+            // 渲染新消息到界面
+            function appendMessages(msgs) {
+                if (!msgs.length) return;
+                const fragment = document.createDocumentFragment();
+                msgs.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'message';
+                    // 判断是否自己发送
+                    if (msg.name === currentUser) {
+                        msgDiv.classList.add('own');
+                    }
+
+                    // 名字行
+                    const nameSpan = document.createElement('div');
+                    nameSpan.className = 'message-name';
+                    nameSpan.textContent = msg.name;
+
+                    // 内容气泡
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'message-content';
+
+                    if (msg.type === 'image') {
+                        const img = document.createElement('img');
+                        img.src = msg.content;  // 已经是 base64 dataurl
+                        img.className = 'image-message';
+                        img.alt = '图片消息';
+                        contentDiv.appendChild(img);
+                    } else {
+                        const textSpan = document.createElement('div');
+                        textSpan.className = 'text-message';
+                        textSpan.textContent = msg.content; // 安全转义
+                        contentDiv.appendChild(textSpan);
+                    }
+
+                    // 时间
+                    const timeSpan = document.createElement('div');
+                    timeSpan.className = 'message-time';
+                    const date = new Date(msg.time);
+                    timeSpan.textContent = `${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
+
+                    msgDiv.appendChild(nameSpan);
+                    msgDiv.appendChild(contentDiv);
+                    msgDiv.appendChild(timeSpan);
+                    fragment.appendChild(msgDiv);
+                });
+                messageList.appendChild(fragment);
+                // 滚动到底部
+                messageList.scrollTop = messageList.scrollHeight;
+            }
+
+            // 登出 (清理cookie和session)
+            function logout() {
+                stopPolling();
+                loginCard.classList.remove('hidden');
+                chatCard.classList.add('hidden');
+                // 强制清除cookie (后端清除可以通过设置过期，但前端只需跳转)
+                document.cookie = 'session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                currentUser = '';
+                messageList.innerHTML = '';   // 清空消息列表
+                lastMessageTime = 0;
+            }
+
+            // 如果cookie失效导致401，可以在全局fetch拦截，但这里简单处理：遇到401时调用logout
+            // 注意：上面的send已经处理了401，但轮询也可能401，但轮询中无法直接触发logout，我们可以在poll里捕获401并logout
+            // 改进poll
+            // 简单起见，我们在轮询的catch里不做自动登出，因为轮询不会返回401(获取消息不需要登录)，但/send可能会
+            // 但为了更严谨，可以在fetch里检查res.status，这里暂时保持简洁
+
+            // 检查初始是否有cookie？不需要，必须登录。
+            // 如果直接访问聊天卡片，后端接口会返回401，前端会停留在登录页。
+        })();
+    </script>
+</body>
+      </html>
